@@ -83,7 +83,7 @@ public class PerformanceTest {
             long participantId = i;
 
             executorService.submit(() -> {
-                long bidPrice = getBidPrice(auction);
+                long bidPrice = 0L;
                 int unsuccessfulAttempts = 0;
 
 
@@ -97,7 +97,7 @@ public class PerformanceTest {
                         if (Thread.currentThread().isInterrupted()) {
                             break outerLoop;
                         }
-                        bidPrice = getBidPrice(auction) + unsuccessfulAttempts + 1;
+                        bidPrice += unsuccessfulAttempts + 1;
                         ++unsuccessfulAttempts;
                     }
                     if (bidPrice < maxBidPrice) {
