@@ -5,7 +5,6 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class Constants {
 
-   public static final int MESSAGE_SEND_TIME_MILLIS = 10;
-//   public static final int MESSAGE_SEND_TIME_MILLIS = 2_000;
+   public static final int MESSAGE_SEND_TIME_MILLIS = 2_000;
 
 }

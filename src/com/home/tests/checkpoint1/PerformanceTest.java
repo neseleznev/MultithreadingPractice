@@ -31,14 +31,14 @@ public class PerformanceTest {
                 ReentrantReadWriteLockAuction::new,
         });
 //        List<Integer> threadCounts = List.of(1, 2, 5, 10, 100, 200, 500, 1000);
-        List<Integer> threadCounts = List.of(1, 2, 10, 100, 1000, 10_000);
-        long timeoutSeconds = 1L;
+        List<Integer> threadCounts = List.of(1, 2, 10, 100, 1000);
+        long timeoutSeconds = 10L;
 
 
         // JVM warmup
         for (var auction : auctions) {
             long maxBidPrice = 1_000_000;
-            for (int threadCount : List.of(1, 100)) {
+            for (int threadCount : List.of(1, 1000)) {
                 ExecutorService executorService1 = new ThreadPoolExecutor(
                         threadCount, threadCount,
                         60L, TimeUnit.SECONDS,
