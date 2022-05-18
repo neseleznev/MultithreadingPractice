@@ -58,7 +58,7 @@ public class PerformanceTest {
                         60L, TimeUnit.SECONDS,
                         new SynchronousQueue<>());
                 Auction auction = auctionSupplier.get();
-                long maxBidPrice = 1_000_000;
+                long maxBidPrice = 1_000_000_000;
 
                 long start = System.currentTimeMillis();
 
@@ -67,10 +67,10 @@ public class PerformanceTest {
                 executorService.shutdownNow();
 
                 long elapsed = System.currentTimeMillis() - start;
-                System.out.println(String.format("Threads: %04d elapsed %.3f sec\tLast price: %d",
+                System.out.println(String.format("Threads: %04d elapsed %.3f sec\tBids count: %d",
                         threadCount,
                         elapsed / 1000.,
-                        getBidPrice(auction)));
+                        auction.getBidsCount()));
             }
         }
     }

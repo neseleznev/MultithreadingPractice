@@ -4,6 +4,7 @@ import com.home.tests.checkpoint1.Auction;
 import com.home.tests.checkpoint1.Bid;
 import net.jcip.annotations.NotThreadSafe;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -16,16 +17,20 @@ public class ReentrantReadWriteLockAuction implements Auction {
 
     private Bid latestBid;
 
+    private final AtomicInteger bidsCount = new AtomicInteger(0);
+
     public boolean propose(Bid bid) {
         lock.writeLock().lock();
         try {
             if (latestBid == null) {
                 latestBid = bid;
+                bidsCount.incrementAndGet();
                 return true;
             }
             if (bid.getPrice() > latestBid.getPrice()) {
                 notifier.sendOutdatedMessage(latestBid);
                 latestBid = bid;
+                bidsCount.incrementAndGet();
                 return true;
             }
             return false;
@@ -41,5 +46,10 @@ public class ReentrantReadWriteLockAuction implements Auction {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    @Override
+    public int getBidsCount() {
+        return bidsCount.get();
     }
 }

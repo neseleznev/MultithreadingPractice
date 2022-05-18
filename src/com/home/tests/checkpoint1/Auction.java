@@ -6,4 +6,6 @@ public interface Auction {
 
     Bid getLatestBid();
 
+    int getBidsCount();
+
 }
