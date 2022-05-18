@@ -6,24 +6,8 @@ import net.jcip.annotations.NotThreadSafe;
 
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.home.tests.checkpoint1.Constants.MESSAGE_SEND_TIME_MILLIS;
-
 @NotThreadSafe
 public class ReentrantLockAuction implements Auction {
-
-    public static class Notifier {
-        public void sendOutdatedMessage(Bid bid) {
-//            System.out.println(String.format(
-//                    "%s Send notification to %d: your last bid %d is expired",
-//                    Thread.currentThread().getName(),bid.getParticipantId(), bid.getPrice()));
-            try {
-                Thread.sleep(MESSAGE_SEND_TIME_MILLIS);
-            } catch (InterruptedException e) {
-//                System.out.println("Interrupted. NO op");
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
 
     private final Notifier notifier = new Notifier();
 
