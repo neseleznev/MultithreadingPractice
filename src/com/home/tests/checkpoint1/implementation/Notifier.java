@@ -9,7 +9,8 @@ import static com.home.tests.checkpoint1.Constants.MESSAGE_SEND_TIME_MILLIS;
 
 public class Notifier {
 
-    private static final ExecutorService executorService = Executors.newFixedThreadPool(1_000);
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors());
 
     public void sendOutdatedMessage(Bid bid) {
         executorService.submit(() -> {
