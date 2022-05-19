@@ -9,8 +9,6 @@ import lombok.SneakyThrows;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,13 +35,12 @@ public class PerformanceTest {
 
         // JVM warmup
         for (var auction : auctions) {
-            long maxBidPrice = 1_000_000;
-            for (int threadCount : List.of(1, 1000)) {
+            for (int threadCount : List.of(1, 10)) {
                 ExecutorService executorService1 = new ThreadPoolExecutor(
                         threadCount, threadCount,
                         60L, TimeUnit.SECONDS,
                         new SynchronousQueue<>());
-                perform(auction.get(), maxBidPrice, threadCount, executorService1);
+                perform(auction.get(), threadCount, executorService1);
                 executorService1.awaitTermination(timeoutSeconds, TimeUnit.SECONDS);
                 executorService1.shutdownNow();
             }
@@ -58,11 +55,10 @@ public class PerformanceTest {
                         60L, TimeUnit.SECONDS,
                         new SynchronousQueue<>());
                 Auction auction = auctionSupplier.get();
-                long maxBidPrice = 1_000_000_000;
 
                 long start = System.currentTimeMillis();
 
-                perform(auction, maxBidPrice, threadCount, executorService);
+                perform(auction, threadCount, executorService);
                 executorService.awaitTermination(timeoutSeconds, TimeUnit.SECONDS);
                 executorService.shutdownNow();
 
@@ -76,7 +72,6 @@ public class PerformanceTest {
     }
 
     private static void perform(Auction auction,
-                                long maxBidPrice,
                                 int threadCount,
                                 ExecutorService executorService) {
         for (int i = 0; i < threadCount; ++i) {
@@ -86,23 +81,18 @@ public class PerformanceTest {
                 long bidPrice = 0L;
                 int unsuccessfulAttempts = 0;
 
-
                 outerLoop:
-                while (bidPrice < maxBidPrice) {
+                while (true) {
                     if (Thread.currentThread().isInterrupted()) {
                         break;
                     }
-                    while (bidPrice < maxBidPrice
-                            && !auction.propose(new Bid(participantId, participantId, bidPrice))) {
+
+                    while (!auction.propose(new Bid(participantId, participantId, bidPrice))) {
                         if (Thread.currentThread().isInterrupted()) {
                             break outerLoop;
                         }
                         bidPrice += unsuccessfulAttempts + 1;
                         ++unsuccessfulAttempts;
-                    }
-                    if (bidPrice < maxBidPrice) {
-//                        randomVeryShortTask();
-//                        System.out.println(String.format("%s: %d / %d", Thread.currentThread().getName(), bidPrice, unsuccessfulAttempts));
                     }
                     unsuccessfulAttempts = 0;
                 }
@@ -110,19 +100,4 @@ public class PerformanceTest {
         }
     }
 
-    private static Long getBidPrice(Auction auction) {
-        return Optional.ofNullable(auction.getLatestBid())
-                .map(Bid::getPrice)
-                .orElse(1L);
-    }
-
-    private static final Random random = new Random();
-
-    private static void randomVeryShortTask() {
-        int randInt = random.nextInt(10_000);
-        for (int cnt = 1000; cnt < 1000 + randInt; ++cnt) {
-            int square = (int) (cnt * cnt / (double) (cnt + cnt << 1));
-            ++square;
-        }
-    }
 }
