@@ -1,13 +1,14 @@
 package com.home.tests.checkpoint1;
 
 
-import com.home.tests.checkpoint1.implementation.DummyAuction;
 import com.home.tests.checkpoint1.implementation.ReentrantLockAuction;
 import com.home.tests.checkpoint1.implementation.ReentrantReadWriteLockAuction;
 import com.home.tests.checkpoint1.implementation.SynchronizedAuction;
 import lombok.SneakyThrows;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -17,8 +18,8 @@ import java.util.function.Supplier;
 
 public class PerformanceTest {
 
-    private static final Auction DUMMY_AUCTION = new DummyAuction();
-    private static final Auction SYNCHRONIZED_AUCTION = new SynchronizedAuction();
+    private static final long MAX_LATEST_BID = 1_000_000L;
+    private static final long TIMEOUT_SECONDS = 10L;
 
     @SneakyThrows
     public static void main(String[] args) {
@@ -28,74 +29,83 @@ public class PerformanceTest {
                 ReentrantLockAuction::new,
                 ReentrantReadWriteLockAuction::new,
         });
-//        List<Integer> threadCounts = List.of(1, 2, 5, 10, 100, 200, 500, 1000);
-        List<Integer> threadCounts = List.of(1, 2, 10, 100, 1000);
-        long timeoutSeconds = 10L;
+        List<Integer> workerCounts = List.of(1, 2, 10, 100, 1000);
 
 
         // JVM warmup
         for (var auction : auctions) {
-            for (int threadCount : List.of(1, 10)) {
-                ExecutorService executorService1 = new ThreadPoolExecutor(
-                        threadCount, threadCount,
-                        60L, TimeUnit.SECONDS,
-                        new SynchronousQueue<>());
-                perform(auction.get(), threadCount, executorService1);
-                executorService1.awaitTermination(timeoutSeconds, TimeUnit.SECONDS);
-                executorService1.shutdownNow();
+            for (int workerCount : List.of(1, 10)) {
+                ExecutorService executorService1 = createCachedExecutorServiceOfCpuCoreSize();
+
+                List<Bid> bids = generateHighlyConcurrentBidsSequence(workerCount);
+                perform(auction.get(), bids, executorService1);
+
+                finishAllTasksByTimeout(executorService1);
             }
         }
 
         for (var auctionSupplier : auctions) {
             System.out.println(String.format("Auction: %s", auctionSupplier.get().getClass().getSimpleName()));
 
-            for (int threadCount : threadCounts) {
-                ExecutorService executorService = new ThreadPoolExecutor(
-                        threadCounts.get(threadCounts.size() - 1), threadCounts.get(threadCounts.size() - 1),
-                        60L, TimeUnit.SECONDS,
-                        new SynchronousQueue<>());
+            for (int workerCount : workerCounts) {
+                ExecutorService executorService = createCachedExecutorServiceOfCpuCoreSize();
                 Auction auction = auctionSupplier.get();
 
                 long start = System.currentTimeMillis();
 
-                perform(auction, threadCount, executorService);
-                executorService.awaitTermination(timeoutSeconds, TimeUnit.SECONDS);
-                executorService.shutdownNow();
+                List<Bid> bids = generateHighlyConcurrentBidsSequence(workerCount);
+                perform(auction, bids, executorService);
+
+                finishAllTasksByTimeout(executorService);
 
                 long elapsed = System.currentTimeMillis() - start;
                 System.out.println(String.format("Threads: %04d elapsed %.3f sec\tBids count: %d",
-                        threadCount,
+                        workerCount,
                         elapsed / 1000.,
                         auction.getBidsCount()));
             }
         }
     }
 
+    private static ExecutorService createCachedExecutorServiceOfCpuCoreSize() {
+        int corePoolSize = Runtime.getRuntime().availableProcessors() * 2;
+        return new ThreadPoolExecutor(
+                corePoolSize, Integer.MAX_VALUE,
+                60L, TimeUnit.SECONDS,
+                new SynchronousQueue<>());
+    }
+
+    private static void finishAllTasksByTimeout(ExecutorService executorService) throws InterruptedException {
+        executorService.awaitTermination(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        executorService.shutdownNow();
+    }
+
+    private static List<Bid> generateHighlyConcurrentBidsSequence(int workerCount) {
+        List<Bid> result = new ArrayList<>();
+
+        for (long currentLatestBidPrice = 0L; currentLatestBidPrice < MAX_LATEST_BID; ++currentLatestBidPrice) {
+            List<Integer> participantIds = new ArrayList<>();
+            for (int i = 0; i < workerCount; ++i) {
+                participantIds.add(i);
+            }
+            Collections.shuffle(participantIds);
+
+            for (long participantId : participantIds) {
+                result.add(new Bid(participantId, participantId, currentLatestBidPrice));
+            }
+        }
+        return result;
+    }
+
     private static void perform(Auction auction,
-                                int threadCount,
+                                List<Bid> bids,
                                 ExecutorService executorService) {
-        for (int i = 0; i < threadCount; ++i) {
-            long participantId = i;
-
+        for (Bid bid : bids) {
             executorService.submit(() -> {
-                long bidPrice = 0L;
-                int unsuccessfulAttempts = 0;
-
-                outerLoop:
-                while (true) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        break;
-                    }
-
-                    while (!auction.propose(new Bid(participantId, participantId, bidPrice))) {
-                        if (Thread.currentThread().isInterrupted()) {
-                            break outerLoop;
-                        }
-                        bidPrice += unsuccessfulAttempts + 1;
-                        ++unsuccessfulAttempts;
-                    }
-                    unsuccessfulAttempts = 0;
+                if (Thread.currentThread().isInterrupted()) {
+                    return;
                 }
+                auction.propose(bid);
             });
         }
     }
