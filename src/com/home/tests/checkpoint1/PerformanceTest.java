@@ -3,6 +3,7 @@ package com.home.tests.checkpoint1;
 
 import com.home.tests.checkpoint1.implementation.ReentrantLockAuction;
 import com.home.tests.checkpoint1.implementation.ReentrantReadWriteLockAuction;
+import com.home.tests.checkpoint1.implementation.StampedLockAuction;
 import com.home.tests.checkpoint1.implementation.SynchronizedAuction;
 import lombok.SneakyThrows;
 
@@ -25,6 +26,7 @@ public class PerformanceTest {
     public static void main(String[] args) {
         List<Supplier<Auction>> auctions = Arrays.asList(new Supplier[]{
 //                DummyAuction::new,
+                StampedLockAuction::new,
                 SynchronizedAuction::new,
                 ReentrantLockAuction::new,
                 ReentrantReadWriteLockAuction::new,
