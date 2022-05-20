@@ -8,8 +8,8 @@ import lombok.SneakyThrows;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 
 public class PerformanceTest {
 
-    private static final long MAX_LATEST_BID = 1_000_000L;
+    private static final long MAX_LATEST_BID = 10_000_000L;
     private static final long TIMEOUT_SECONDS = 10L;
 
     @SneakyThrows
@@ -33,16 +33,17 @@ public class PerformanceTest {
 
 
         // JVM warmup
-        for (var auction : auctions) {
-            for (int workerCount : List.of(1, 10)) {
-                ExecutorService executorService1 = createCachedExecutorServiceOfCpuCoreSize();
-
-                List<Bid> bids = generateHighlyConcurrentBidsSequence(workerCount);
-                perform(auction.get(), bids, executorService1);
-
-                finishAllTasksByTimeout(executorService1);
-            }
-        }
+//        for (var auction : auctions) {
+//            for (int workerCount : List.of(1)) {
+//                ExecutorService executorService1 = createCachedExecutorServiceOfCpuCoreSize();
+//                List<Bid> bids = generateHighlyConcurrentBidsSequence(workerCount);
+//                long start = System.currentTimeMillis() - (TIMEOUT_SECONDS - 1) * 1_000;
+//
+//                perform(auction.get(), bids, executorService1,workerCount);
+//
+//                finishAllTasksByTimeout(executorService1, start);
+//            }
+//        }
 
         for (var auctionSupplier : auctions) {
             System.out.println(String.format("Auction: %s", auctionSupplier.get().getClass().getSimpleName()));
@@ -50,49 +51,55 @@ public class PerformanceTest {
             for (int workerCount : workerCounts) {
                 ExecutorService executorService = createCachedExecutorServiceOfCpuCoreSize();
                 Auction auction = auctionSupplier.get();
+                List<Bid> bids = generateHighlyConcurrentBidsSequence();
 
                 long start = System.currentTimeMillis();
 
-                List<Bid> bids = generateHighlyConcurrentBidsSequence(workerCount);
                 perform(auction, bids, executorService);
 
-                finishAllTasksByTimeout(executorService);
+                finishAllTasksByTimeout(executorService, start);
 
                 long elapsed = System.currentTimeMillis() - start;
-                System.out.println(String.format("Threads: %04d elapsed %.3f sec\tBids count: %d",
+                System.out.println(String.format("Threads: %04d " +
+                                "elapsed %.3f sec\t" +
+                                "Bids count: %d\t" +
+                                "Bids/sec: %d\t" +
+                                "Bid price: %d",
                         workerCount,
                         elapsed / 1000.,
-                        auction.getBidsCount()));
+                        auction.getBidsCount(),
+                        (int) (auction.getBidsCount() / (elapsed / 1000.)),
+                        getBidPrice(auction)));
             }
         }
     }
 
     private static ExecutorService createCachedExecutorServiceOfCpuCoreSize() {
-        int corePoolSize = Runtime.getRuntime().availableProcessors() * 2;
+        int corePoolSize = Runtime.getRuntime().availableProcessors();
         return new ThreadPoolExecutor(
                 corePoolSize, Integer.MAX_VALUE,
                 60L, TimeUnit.SECONDS,
                 new SynchronousQueue<>());
     }
 
-    private static void finishAllTasksByTimeout(ExecutorService executorService) throws InterruptedException {
-        executorService.awaitTermination(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    private static void finishAllTasksByTimeout(ExecutorService executorService,
+                                                long start) throws InterruptedException {
+        executorService.awaitTermination(TIMEOUT_SECONDS * 1_000 - start, TimeUnit.MILLISECONDS);
         executorService.shutdownNow();
     }
 
-    private static List<Bid> generateHighlyConcurrentBidsSequence(int workerCount) {
+    private static Long getBidPrice(Auction auction) {
+        return Optional.ofNullable(auction.getLatestBid())
+                .map(Bid::getPrice)
+                .orElse(1L);
+    }
+
+    private static List<Bid> generateHighlyConcurrentBidsSequence() {
         List<Bid> result = new ArrayList<>();
 
         for (long currentLatestBidPrice = 0L; currentLatestBidPrice < MAX_LATEST_BID; ++currentLatestBidPrice) {
-            List<Integer> participantIds = new ArrayList<>();
-            for (int i = 0; i < workerCount; ++i) {
-                participantIds.add(i);
-            }
-            Collections.shuffle(participantIds);
-
-            for (long participantId : participantIds) {
-                result.add(new Bid(participantId, participantId, currentLatestBidPrice));
-            }
+            long participantId = 1L;
+            result.add(new Bid(participantId, participantId, currentLatestBidPrice));
         }
         return result;
     }
@@ -100,7 +107,13 @@ public class PerformanceTest {
     private static void perform(Auction auction,
                                 List<Bid> bids,
                                 ExecutorService executorService) {
+        long start = System.currentTimeMillis();
+
         for (Bid bid : bids) {
+            if (System.currentTimeMillis() - start > 1_000 * TIMEOUT_SECONDS) {
+                // Do not load too many tasks, it is pointless
+                break;
+            }
             executorService.submit(() -> {
                 if (Thread.currentThread().isInterrupted()) {
                     return;
