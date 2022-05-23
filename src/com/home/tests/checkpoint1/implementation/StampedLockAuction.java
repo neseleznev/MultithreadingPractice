@@ -16,10 +16,15 @@ public class StampedLockAuction implements Auction {
 
     private final AtomicInteger bidsCount = new AtomicInteger(0);
 
+    private boolean stopped = false;
+
     public boolean propose(Bid bid) {
         long stamp = lock.writeLock();
 
         try {
+            if (stopped) {
+                return false;
+            }
             if (latestBid == null) {
                 latestBid = bid;
                 bidsCount.incrementAndGet();
@@ -54,5 +59,16 @@ public class StampedLockAuction implements Auction {
         } while (!lock.validate(stamp));
 
         return bidsCount.get();
+    }
+
+    @Override
+    public void stopAuction() {
+        long stamp = lock.writeLock();
+
+        try {
+            stopped = true;
+        } finally {
+            lock.unlock(stamp);
+        }
     }
 }

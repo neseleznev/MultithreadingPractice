@@ -1,11 +1,9 @@
 package com.home.tests.checkpoint1;
 
 
-import com.home.tests.checkpoint1.implementation.ReentrantLockAuction;
-import com.home.tests.checkpoint1.implementation.ReentrantReadWriteLockAuction;
-import com.home.tests.checkpoint1.implementation.StampedLockAuction;
-import com.home.tests.checkpoint1.implementation.SynchronizedAuction;
+import com.home.tests.checkpoint1.implementation.*;
 import lombok.SneakyThrows;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,12 +18,14 @@ import java.util.function.Supplier;
 public class PerformanceTest {
 
     private static final long MAX_LATEST_BID = 10_000_000L;
+    private static final long STOP_AUCTION_AFTER_BID = 1_000_000L;
     private static final long TIMEOUT_SECONDS = 10L;
 
     @SneakyThrows
     public static void main(String[] args) {
         List<Supplier<Auction>> auctions = Arrays.asList(new Supplier[]{
 //                DummyAuction::new,
+                OptimisticWriteAuction::new,
                 StampedLockAuction::new,
                 SynchronizedAuction::new,
                 ReentrantLockAuction::new,
@@ -96,10 +96,14 @@ public class PerformanceTest {
                 .orElse(1L);
     }
 
-    private static List<Bid> generateHighlyConcurrentBidsSequence() {
+    private static List<@Nullable Bid> generateHighlyConcurrentBidsSequence() {
         List<Bid> result = new ArrayList<>();
 
         for (long currentLatestBidPrice = 0L; currentLatestBidPrice < MAX_LATEST_BID; ++currentLatestBidPrice) {
+            if (currentLatestBidPrice == STOP_AUCTION_AFTER_BID) {
+                result.add(null);
+                continue;
+            }
             long participantId = 1L;
             result.add(new Bid(participantId, participantId, currentLatestBidPrice));
         }
@@ -107,7 +111,7 @@ public class PerformanceTest {
     }
 
     private static void perform(Auction auction,
-                                List<Bid> bids,
+                                List<@Nullable Bid> bids,
                                 ExecutorService executorService) {
         long start = System.currentTimeMillis();
 
@@ -115,6 +119,10 @@ public class PerformanceTest {
             if (System.currentTimeMillis() - start > 1_000 * TIMEOUT_SECONDS) {
                 // Do not load too many tasks, it is pointless
                 break;
+            }
+            if (bid == null) {
+                executorService.submit(auction::stopAuction);
+                continue;
             }
             executorService.submit(() -> {
                 if (Thread.currentThread().isInterrupted()) {

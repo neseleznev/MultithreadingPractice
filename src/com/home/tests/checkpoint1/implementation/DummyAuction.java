@@ -15,7 +15,12 @@ public class DummyAuction implements Auction {
     @Getter
     private int bidsCount = 0;
 
+    private boolean stopped = false;
+
     public boolean propose(Bid bid) {
+        if (stopped) {
+            return false;
+        }
         if (latestBid == null) {
             latestBid = bid;
             ++bidsCount;
@@ -32,5 +37,10 @@ public class DummyAuction implements Auction {
 
     public Bid getLatestBid() {
         return latestBid;
+    }
+
+    @Override
+    public void stopAuction() {
+        stopped = true;
     }
 }

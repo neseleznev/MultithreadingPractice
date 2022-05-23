@@ -15,7 +15,12 @@ public class OptimisticWriteAuction implements Auction {
 
     private final AtomicInteger bidsCount = new AtomicInteger(0);
 
+    private volatile boolean stopped = false;
+
     public boolean propose(Bid bid) {
+        if (stopped) {
+            return false;
+        }
 //            if (latestBid == null) {
 //                latestBid = bid;
 //                bidsCount.incrementAndGet();
@@ -41,6 +46,11 @@ public class OptimisticWriteAuction implements Auction {
     @Override
     public int getBidsCount() {
         return bidsCount.get();
+    }
+
+    @Override
+    public void stopAuction() {
+        stopped = true;
     }
 
     // VarHandle mechanics

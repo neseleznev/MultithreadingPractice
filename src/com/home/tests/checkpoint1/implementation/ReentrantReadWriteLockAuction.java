@@ -17,9 +17,14 @@ public class ReentrantReadWriteLockAuction implements Auction {
 
     private final AtomicInteger bidsCount = new AtomicInteger(0);
 
+    private boolean stopped = false;
+
     public boolean propose(Bid bid) {
         lock.writeLock().lock();
         try {
+            if (stopped) {
+                return false;
+            }
             if (latestBid == null) {
                 latestBid = bid;
                 bidsCount.incrementAndGet();
@@ -49,5 +54,15 @@ public class ReentrantReadWriteLockAuction implements Auction {
     @Override
     public int getBidsCount() {
         return bidsCount.get();
+    }
+
+    @Override
+    public void stopAuction() {
+        lock.writeLock().lock();
+        try {
+            stopped = true;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 }

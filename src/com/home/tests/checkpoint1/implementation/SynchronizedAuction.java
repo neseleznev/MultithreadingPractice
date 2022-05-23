@@ -13,7 +13,12 @@ public class SynchronizedAuction implements Auction {
 
     private final AtomicInteger bidsCount = new AtomicInteger(0);
 
+    private boolean stopped = false;
+
     public synchronized boolean propose(Bid bid) {
+        if (stopped) {
+            return false;
+        }
         if (latestBid == null) {
             latestBid = bid;
             bidsCount.incrementAndGet();
@@ -35,5 +40,10 @@ public class SynchronizedAuction implements Auction {
     @Override
     public int getBidsCount() {
         return bidsCount.get();
+    }
+
+    @Override
+    public synchronized void stopAuction() {
+        stopped = true;
     }
 }
