@@ -2,12 +2,10 @@ package com.home.tests.checkpoint1.implementation;
 
 import com.home.tests.checkpoint1.Auction;
 import com.home.tests.checkpoint1.Bid;
-import net.jcip.annotations.NotThreadSafe;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.StampedLock;
 
-@NotThreadSafe
 public class StampedLockAuction implements Auction {
 
     private final Notifier notifier = new Notifier();

@@ -2,11 +2,9 @@ package com.home.tests.checkpoint1.implementation;
 
 import com.home.tests.checkpoint1.Auction;
 import com.home.tests.checkpoint1.Bid;
-import net.jcip.annotations.NotThreadSafe;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-@NotThreadSafe
 public class SynchronizedAuction implements Auction {
 
     private final Notifier notifier = new Notifier();
