@@ -26,17 +26,27 @@ public class OptimisticWriteAuction implements Auction {
 //                bidsCount.incrementAndGet();
 //                return true;
 //            }
-        if (latestBid.getPrice() < bid.getPrice()) {
-            boolean success;
-            do {
-                success = LATEST_BID.compareAndSet(this, latestBid, bid);
-            } while (!success);
+        boolean success;
+        Bid localLatestBid;
+        boolean priceUpdated;
 
-            notifier.sendOutdatedMessage(latestBid);
+        do {
+            localLatestBid = latestBid;
+
+            if (latestBid.getPrice() < bid.getPrice()) {
+                success = LATEST_BID.compareAndSet(this, latestBid, bid);
+                priceUpdated = true;
+            } else {
+                success = true;
+                priceUpdated = false;
+            }
+        } while (!success);
+
+        if (priceUpdated) {
+            notifier.sendOutdatedMessage(localLatestBid);
             bidsCount.incrementAndGet();
-            return true;
         }
-        return false;
+        return priceUpdated;
     }
 
     public Bid getLatestBid() {
