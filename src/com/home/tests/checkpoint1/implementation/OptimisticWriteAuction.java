@@ -3,24 +3,22 @@ package com.home.tests.checkpoint1.implementation;
 import com.home.tests.checkpoint1.Auction;
 import com.home.tests.checkpoint1.Bid;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 
 public class OptimisticWriteAuction implements Auction {
 
     private final Notifier notifier = new Notifier();
 
-    private Bid latestBid = new Bid(1L, 1L, 0L); // Initialized price for simplicity
+    // Price is initialized for simplicity
+    // mark := isStopped
+    private final AtomicMarkableReference<Bid> latestBid = new AtomicMarkableReference<>(
+            new Bid(1L, 1L, 0L),
+            false);
 
     private final AtomicInteger bidsCount = new AtomicInteger(0);
 
-    private volatile boolean stopped = false;
-
     public boolean propose(Bid bid) {
-        if (stopped) {
-            return false;
-        }
 //            if (latestBid == null) {
 //                latestBid = bid;
 //                bidsCount.incrementAndGet();
@@ -31,10 +29,13 @@ public class OptimisticWriteAuction implements Auction {
         boolean priceUpdated;
 
         do {
-            localLatestBid = latestBid;
+            if (latestBid.isMarked()) {
+                return false;
+            }
+            localLatestBid = latestBid.getReference();
 
-            if (latestBid.getPrice() < bid.getPrice()) {
-                success = LATEST_BID.compareAndSet(this, latestBid, bid);
+            if (localLatestBid.getPrice() < bid.getPrice()) {
+                success = latestBid.compareAndSet(localLatestBid, bid, false, false);
                 priceUpdated = true;
             } else {
                 success = true;
@@ -50,7 +51,7 @@ public class OptimisticWriteAuction implements Auction {
     }
 
     public Bid getLatestBid() {
-        return latestBid;
+        return latestBid.getReference();
     }
 
     @Override
@@ -60,18 +61,7 @@ public class OptimisticWriteAuction implements Auction {
 
     @Override
     public void stopAuction() {
-        stopped = true;
+        latestBid.set(latestBid.getReference(), true);
     }
 
-    // VarHandle mechanics
-    private static final VarHandle LATEST_BID;
-
-    static {
-        try {
-            MethodHandles.Lookup l = MethodHandles.lookup();
-            LATEST_BID = l.findVarHandle(OptimisticWriteAuction.class, "latestBid", Bid.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
 }
