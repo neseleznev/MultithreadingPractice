@@ -1,6 +1,8 @@
 package com.home.tests.module3.delivery;
 
-import lombok.Data;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -12,13 +14,22 @@ class PaymentInfo { /*...*/
 
 enum Status {DELIVERED}
 
-@Data
 public class Order {
 
+    @Getter
+    @Setter
     private Long id;
-    private List<Item> items;
+
+    @Getter(value = AccessLevel.NONE)
+    private final List<Item> items;
+
+    @Setter
     private PaymentInfo paymentInfo;
+
+    @Setter
     private boolean isPacked;
+
+    @Setter
     private Status status;
 
     public Order(List<Item> items) {
@@ -29,5 +40,4 @@ public class Order {
         return items != null && !items.isEmpty() && paymentInfo != null && isPacked;
     }
 
-    /* getters, setters */
 }
