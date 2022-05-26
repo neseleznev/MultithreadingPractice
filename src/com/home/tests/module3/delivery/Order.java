@@ -25,12 +25,8 @@ public class Order {
         this.items = items;
     }
 
-    public synchronized boolean checkStatus() {
-        if (items != null && !items.isEmpty() && paymentInfo != null && isPacked) {
-            status = Status.DELIVERED;
-            return true;
-        }
-        return false;
+    public boolean isReadyToDeliver() {
+        return items != null && !items.isEmpty() && paymentInfo != null && isPacked;
     }
 
     /* getters, setters */
