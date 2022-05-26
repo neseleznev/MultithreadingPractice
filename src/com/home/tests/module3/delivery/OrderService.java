@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class OrderService {
 
-    private Map<Long, Order> currentOrders = new HashMap<>();
+    private final Map<Long, Order> currentOrders = new HashMap<>();
     private long nextId = 0L;
 
     private synchronized long nextId() {
@@ -25,7 +25,6 @@ public class OrderService {
         currentOrders.get(cartId).setPaymentInfo(paymentInfo);
         if (currentOrders.get(cartId).checkStatus()) {
             deliver(currentOrders.get(cartId));
-            currentOrders.get(cartId).setStatus(Status.DELIVERED);
         }
     }
 
@@ -36,5 +35,10 @@ public class OrderService {
         }
     }
 
-    private synchronized void deliver(Order order) { /*...*/ }
+    private synchronized void deliver(Order order) {
+        /*...*/
+        //FIXME: Resolve dual-write issue
+        // Should update status via transactional outbox
+        currentOrders.get(order.getId()).setStatus(Status.DELIVERED);
+    }
 }
