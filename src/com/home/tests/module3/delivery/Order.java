@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Collections;
 import java.util.List;
 
 class Item { /*...*/
@@ -33,11 +34,13 @@ public class Order {
     private Status status;
 
     public Order(List<Item> items) {
-        this.items = items;
+        this.items = items != null
+                ? Collections.unmodifiableList(items)
+                : Collections.emptyList();
     }
 
     public boolean isReadyToDeliver() {
-        return items != null && !items.isEmpty() && paymentInfo != null && isPacked;
+        return !items.isEmpty() && paymentInfo != null && isPacked;
     }
 
 }
