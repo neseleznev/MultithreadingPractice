@@ -58,7 +58,7 @@ public class OrderService {
         }
     }
 
-    private synchronized void deliver(Order order) {
+    private void deliver(Order order) {
         /*...*/
         //FIXME: Resolve dual-write issue
         // Should update status via transactional outbox
