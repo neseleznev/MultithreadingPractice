@@ -43,8 +43,8 @@ public class OrderService {
         deliverIfReady(order);
     }
 
-    private synchronized Order getOrCreateOrderByIdAndModify(long cartId,
-                                                             UnaryOperator<Order> unaryOperator) {
+    private Order getOrCreateOrderByIdAndModify(long cartId,
+                                                UnaryOperator<Order> unaryOperator) {
         return currentOrders.compute(
                 cartId,
                 (key, existing) -> unaryOperator.apply(Optional
