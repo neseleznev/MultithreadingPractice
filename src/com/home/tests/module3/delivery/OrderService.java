@@ -62,6 +62,8 @@ public class OrderService {
         /*...*/
         //FIXME: Resolve dual-write issue
         // Should update status via transactional outbox
-        currentOrders.get(order.getId()).withStatus(Status.DELIVERED);
+        getOrCreateOrderByIdAndModify(
+                order.getId(),
+                o -> o.withStatus(Status.DELIVERED));
     }
 }
